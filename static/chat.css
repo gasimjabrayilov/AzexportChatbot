@@ -1,0 +1,8 @@
+.container { max-width: 720px; margin: 24px auto; font-family: system-ui; }
+.messages { border: 1px solid #ddd; height: 70vh; padding: 12px; overflow: auto; border-radius: 12px; }
+.msg { padding: 10px 12px; margin: 8px 0; border-radius: 12px; white-space: pre-wrap; }
+.msg.user { background: #eef; margin-left: 20%; }
+.msg.bot  { background: #efe; margin-right: 20%; }
+.inputRow { display: flex; gap: 8px; margin-top: 12px; }
+input { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #ddd; }
+button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ddd; cursor: pointer; }

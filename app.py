@@ -23,8 +23,8 @@ SYSTEM_PROMPT = """You are a query extraction module. Return ONLY valid JSON.
 JSON schema: {"intent":"find_service","query":"...","needs_clarification":false}
 Extract the shortest searchable query (max 2-3 words) from the user message.
 If too vague, set needs_clarification=true.
-Text will be in Azerbaijani, Russian or English. First adjust grammar mistakes of sentence. then generate 2-3 keywords.
-if useful add a synonym keyword.
+Text may be Azerbaijani, Russian, or English. Fix obvious typos if needed.
+Return 1-3 short keywords as a single string in `query`.
 """
 
 def safe_parse(raw: str):
@@ -69,7 +69,10 @@ async def index(request: Request):
 
 @app.post("/api/chat")
 async def chat(request: Request):
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"reply": "Yanlış sorğu formatı (JSON oxunmadı)."})
     sid = data.get("session_id")
     msg = (data.get("message") or "").strip()
 
@@ -82,17 +85,33 @@ async def chat(request: Request):
         return JSONResponse({"reply": "Sadəcə xidmət adını yazın: logistika, marketinq, tikinti, ..."})
 
     # LLM extraction
-    c = openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[{"role": "system", "content": SYSTEM_PROMPT},
-                  {"role": "user", "content": msg}],
-    )
-    parsed = safe_parse(c.choices[0].message.content or "")
+    try:
+        c = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": msg},
+            ],
+        )
+        parsed = safe_parse(c.choices[0].message.content or "")
+    except Exception:
+        parsed = {"query": "", "needs_clarification": False}
+
+    extracted_query = (parsed.get("query") or "").strip()
+    if not extracted_query:
+        extracted_query = msg
+
+    # If the model says "clarification needed" but the user provided a usable token,
+    # fall back to searching with the original message.
+    if parsed.get("needs_clarification") and build_or_expr(extracted_query):
+        parsed["needs_clarification"] = False
 
     if parsed.get("needs_clarification"):
         return JSONResponse({"reply": "Açar söz yazın…"})
 
-    or_expr = build_or_expr(parsed.get("query", ""))
+    or_expr = build_or_expr(extracted_query)
     if not or_expr:
         return JSONResponse({"reply": "Açar söz yazın…"})
 

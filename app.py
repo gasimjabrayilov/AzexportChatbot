@@ -41,7 +41,7 @@ def build_or_expr(query: str):
         return None
     parts = []
     for t in tokens:
-        parts += [f"keywords.ilike.*{t}*", f"services_text.ilike.*{t}*", f"company_name.ilike.*{t}*"]
+        parts += [f"keywords.ilike.*{t}*", f"services_text.ilike.*{t}*"]
     return ",".join(parts)
 
 def format_rows(rows):
